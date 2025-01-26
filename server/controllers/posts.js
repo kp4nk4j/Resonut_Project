@@ -19,3 +19,26 @@ export const createPost = async (req, res) => {
         res.status(409).json({ message: error.message })
     }
 }
+
+export const updatePost = async (req, res) => {
+    const { id } = req.params;
+    const { title, description, image, status } = req.body;
+
+    try {
+        const updatedPost = await PostMessage.findByIdAndUpdate(id, { title, description, image, status, updatedAt: new Date() }, { new: true });
+        res.status(200).json(updatedPost);
+    } catch (error) {
+        res.status(409).json({ message: error.message });
+    }
+};
+
+export const deletePost = async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        await PostMessage.findByIdAndDelete(id);
+        res.status(200).json({ message: 'Post deleted successfully' });
+    } catch (error) {
+        res.status(409).json({ message: error.message });
+    }
+};

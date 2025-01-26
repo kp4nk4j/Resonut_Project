@@ -1,37 +1,85 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TextField, Button, Box } from '@mui/material';
 import { AiOutlineCheckCircle } from 'react-icons/ai';  // Green check
 import { AiOutlineCloseCircle } from 'react-icons/ai';  // Red cross
+import { useDispatch } from 'react-redux';
+import { createPost, updatePost } from '../actions/posts';
+import { useNavigate, useLocation } from 'react-router-dom';
 import './PostForm.css';
 
 const PostForm = () => {
+    const dispatch = useDispatch();
+    const navigate = useNavigate();
+    const location = useLocation();
+
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [image, setImage] = useState(null);
     const [imageError, setImageError] = useState(false);
+    const [editing, setEditing] = useState(false);
+
+    // Ensure location.state and location.state.post exist before destructuring
+    const post = location?.state?.post;
+    const _id = post?._id;
+
+    useEffect(() => {
+        // Only proceed if location.state and location.state.post exist
+        if (post) {
+            const { title, description, image } = post;
+            setTitle(title || '');
+            setDescription(description || '');
+            setImage(image || null);
+            setEditing(true);
+        }
+    }, [post]);  // Dependency on post ensures the effect runs only when post is updated
 
     const handleImageChange = (e) => {
         const selectedImage = e.target.files[0];
         if (selectedImage) {
             const isImage = selectedImage.type.startsWith('image/');
             if (isImage) {
-                setImage(selectedImage);
-                setImageError(false);
+                const reader = new FileReader();
+                reader.onload = () => {
+                    setImage(reader.result); // Save Base64 string in state
+                    setImageError(false);
+                };
+                reader.readAsDataURL(selectedImage); // Convert file to Base64
             } else {
                 setImage(null);
-                setImageError(true);
+                setImageError(true); // Invalid file
             }
         }
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        const formData = new FormData();
-        formData.append('title', title);
-        formData.append('description', description);
-        if (image) formData.append('image', image);
-        // Add your submit logic here (e.g., API call)
+
+        const postData = {
+            title,
+            description,
+            image, // Base64 string
+        };
+
+        try {
+            if (editing && _id) {
+                await dispatch(updatePost(_id, postData));
+            } else {
+                await dispatch(createPost(postData));
+            }
+            navigate('/');
+        } catch (error) {
+            console.error('Error during post creation:', error);
+        }
     };
+
+    // Check if `post` exists or show a loading or empty state
+    if (!post && editing) {
+        return (
+            <div className='form-container'>
+                <p>Post not found. Please try again later.</p>
+            </div>
+        );
+    }
 
     return (
         <div className='form-container'>
@@ -68,10 +116,11 @@ const PostForm = () => {
                     ) : null}
                     <span>{image ? 'Image Uploaded' : imageError ? 'Invalid Image' : ''}</span>
                 </Box>
-                <Button type="submit" variant="contained" color="primary" >
-                    Submit
+                <Button type="submit" variant="contained" color="primary">
+                    {editing ? 'Update Post' : 'Submit'}
                 </Button>
-            </Box></div>
+            </Box>
+        </div>
     );
 };
 
